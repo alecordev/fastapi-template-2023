@@ -1,0 +1,7 @@
+fastapi==0.95.1
+uvicorn==0.22.0
+python-dotenv==1.0.0
+python-multipart
+# pandas==2.0.1
+# scikit-learn==1.2.2
+# statsmodels==0.14.0
