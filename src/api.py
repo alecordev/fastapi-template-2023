@@ -1,6 +1,11 @@
+import os
 import uuid
 import time
+import json
+import datetime
+from contextlib import asynccontextmanager
 
+import fastapi
 from fastapi import FastAPI, Request, Depends, HTTPException, Security, status
 from starlette.status import (
     HTTP_403_FORBIDDEN,
@@ -48,6 +53,14 @@ tags_metadata = [
     },
 ]
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info({"body": "API Service Started", "context": "startup_event"})
+    yield
+    logger.info({"body": "API Service Stopped", "context": "shutdown_event"})
+
+
 app = FastAPI(
     title="Title API",
     description=description,
@@ -59,6 +72,7 @@ app = FastAPI(
         "defaultModelsExpandDepth": -1,
     },
     json_schema_extra=None,
+    lifespan=lifespan,
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -107,16 +121,6 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         return users_db[token]
     else:
         raise HTTPException(status_code=401, detail="Unauthorized")
-
-
-@app.on_event("startup")
-def startup_event():
-    logger.info({"body": "API Service Started", "context": "startup_event"})
-
-
-@app.on_event("shutdown")
-def shutdown_event():
-    logger.info({"body": "API Service Stopped", "context": "shutdown_event"})
 
 
 @app.middleware("http")
@@ -239,8 +243,45 @@ async def authenticate_endpoint(credentials: UserCredentials):
     else:
         return False
 
+api_v1 = fastapi.FastAPI(
+    title="Template API",
+    description="Template API",
+    version=__version__,
+)
+
+api_v1.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@api_v1.get("/env", include_in_schema=True)
+async def environment():
+    return os.environ
+
+
+@api_v1.get("/ping", summary="Ping")
+async def ping(request: Request):
+    utils.log(f"Ping endpoint requested by {request.state.request_id}")
+    message = {
+        "id": str(uuid.uuid4()),
+        "timestamp": str(datetime.datetime.utcnow()),
+        "body": "Ping endpoint requested.",
+        "metadata": {
+            "request_id": str(request.state.request_id),
+            "client_host": str(request.client.host),
+            "request_headers": str(request.headers.raw),
+        },
+    }
+    utils.log(json.dumps(message, indent=4))
+    return {"ping": "pong"}
+
+app.mount("/api/v1", api_v1)
+
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True, use_colors=True)
+    uvicorn.run("api:app", host="0.0.0.0", port=8081, reload=False, use_colors=True)

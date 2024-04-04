@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: fastapi-template
     environment:
       - API_KEY=API_KEY
     # volumes:

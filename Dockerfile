@@ -1,4 +1,4 @@
-FROM python:3.10 as builder
+FROM python:3.11 as builder
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
@@ -10,13 +10,14 @@ RUN apt-get update && \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY . /app
-WORKDIR /app
+# COPY . /app
+# WORKDIR /app
+COPY requirements.txt .
 
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-FROM python:3.10-slim-bullseye
+FROM python:3.11-slim-bullseye
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
@@ -24,6 +25,8 @@ ENV PYTHONUNBUFFERED 1
 COPY --from=builder /opt/venv /opt/venv
 COPY . /app
 WORKDIR /app/src
-ENV PATH="/opt/venv/bin:$PATH"
 
-CMD ["uname -a"]
+ENV PATH="/opt/venv/bin:$PATH"
+EXPOSE 8081
+# ENTRYPOINT ["/opt/venv/bin/python"]
+CMD ["src/api.py"]
